@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { serviceDb } from './db';
-import { runSync } from './sync';
+import { serviceDb } from './db.js';
+import { runSync } from './sync.js';
 if (!process.env.YOUTUBE_API_KEY) {
   console.error('YOUTUBE_API_KEY ausente.');
   process.exitCode = 1;

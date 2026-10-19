@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Video } from '../shared/types';
+import { apiErrorMessage } from '../shared/http';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = url && key ? createClient(url, key) : null;
@@ -26,8 +27,7 @@ export async function api(path: string, init: RequestInit = {}) {
     },
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.error ?? 'Não foi possível acessar o servidor.');
+    throw new Error(apiErrorMessage(response.status, await response.text()));
   }
   return response;
 }

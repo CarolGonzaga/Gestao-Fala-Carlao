@@ -102,6 +102,8 @@ Exportações usam paginação de banco, sem carregar todas as linhas na tabela 
 
 O worker permanece no GitHub Actions. O backend Vercel só autentica, enfileira, dispara o workflow e exporta dados; não depende de processos em segundo plano após responder ao HTTP.
 
+Se `/api/config` retornar `FUNCTION_INVOCATION_FAILED`, a função falhou ao iniciar, antes de autenticar ou consultar o banco. Confira os Runtime Logs da Vercel e o commit implantado. Os imports relativos do backend usam a extensão `.js` exigida pelo Node ESM; o TypeScript resolve os fontes `.ts` correspondentes. O build verifica isso com `tsconfig.server.json`, e o teste de runtime executa a entrada compilada em Node nativo. Não remova essas extensões ao editar o backend. Erros de backend e de consulta ao canal são apresentados separadamente no painel.
+
 ## 7. Verificação
 
 ```powershell

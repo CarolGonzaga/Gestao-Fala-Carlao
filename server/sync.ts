@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
-import { checked } from './db';
-import { QuotaPause, YouTube, YoutubeError, toVideo } from './youtube';
-import type { Job } from '../shared/types';
+import { checked } from './db.js';
+import { QuotaPause, YouTube, YoutubeError, toVideo } from './youtube.js';
+import type { Job } from '../shared/types.js';
 
 // Dependency injection keeps all API calls mockable. Every page commits with its durable cursor.
 export async function runSync(

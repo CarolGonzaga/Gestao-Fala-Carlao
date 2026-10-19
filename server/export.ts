@@ -1,9 +1,9 @@
 import type { Response } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import ExcelJS from 'exceljs';
-import { applyFilters, type Filters } from '../shared/filters';
-import type { Video } from '../shared/types';
-import { checked } from './db';
+import { applyFilters, type Filters } from '../shared/filters.js';
+import type { Video } from '../shared/types.js';
+import { checked } from './db.js';
 export const columns = [
   'Título',
   'URL',

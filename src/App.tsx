@@ -31,6 +31,7 @@ import {
   Youtube,
 } from 'lucide-react';
 import { api, supabase } from './lib';
+import { readApiJson } from '../shared/http';
 const Dashboard = lazy(() => import('./pages').then((m) => ({ default: m.Dashboard })));
 const SyncPage = lazy(() => import('./pages').then((m) => ({ default: m.SyncPage })));
 const VideoPage = lazy(() => import('./pages').then((m) => ({ default: m.VideoPage })));
@@ -244,20 +245,20 @@ export default function App() {
     queryKey: ['config'],
     enabled: !!admin.data,
     queryFn: async () =>
-      (await (await api('config')).json()) as {
+      readApiJson<{
         youtube: boolean;
         worker: boolean;
         dispatch: boolean;
         schedule: string;
-      },
+      }>(await api('config')),
   });
   async function requestSync(mode: 'full' | 'incremental' | 'retry') {
     setSyncing(true);
     setNotice('');
     try {
-      const r = await (
-        await api('sync', { method: 'POST', body: JSON.stringify({ mode }) })
-      ).json();
+      const r = await readApiJson<{ message: string }>(
+        await api('sync', { method: 'POST', body: JSON.stringify({ mode }) }),
+      );
       setNotice(r.message);
       await client.invalidateQueries({ queryKey: ['jobs'] });
     } catch (e) {
@@ -429,17 +430,18 @@ export default function App() {
               {notice}
             </Alert>
           )}
-          {(config.isError || channel.isError) && (
-            <Alert color="red" mb="lg">
-              Não foi possível verificar a integração. Confira o backend e as migrações.
-              <Button
-                variant="subtle"
-                size="xs"
-                onClick={() => {
-                  config.refetch();
-                  channel.refetch();
-                }}
-              >
+          {config.isError && (
+            <Alert color="red" title="Falha na conexão com o backend" mb="lg">
+              {config.error.message}
+              <Button variant="subtle" size="xs" onClick={() => config.refetch()}>
+                Tentar novamente
+              </Button>
+            </Alert>
+          )}
+          {channel.isError && (
+            <Alert color="red" title="Falha ao consultar o canal no Supabase" mb="lg">
+              {channel.error.message}
+              <Button variant="subtle" size="xs" onClick={() => channel.refetch()}>
                 Tentar novamente
               </Button>
             </Alert>

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Video } from '../shared/types';
+import type { Video } from '../shared/types.js';
 const thumb = z.record(
   z.string(),
   z.object({ url: z.string().url(), width: z.number().optional(), height: z.number().optional() }),

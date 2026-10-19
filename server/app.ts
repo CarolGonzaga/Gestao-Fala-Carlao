@@ -1,8 +1,8 @@
 import express from 'express';
 import { z } from 'zod';
-import { userDb, checked } from './db';
-import { filterSchema } from '../shared/filters';
-import { exportVideos } from './export';
+import { userDb, checked } from './db.js';
+import { filterSchema } from '../shared/filters.js';
+import { exportVideos } from './export.js';
 export function createApp(makeDb = userDb) {
   const app = express();
   app.disable('x-powered-by');
@@ -50,12 +50,10 @@ export function createApp(makeDb = userDb) {
     try {
       const { mode } = z.object({ mode: z.enum(['full', 'incremental', 'retry']) }).parse(req.body);
       if (!process.env.YOUTUBE_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        res
-          .status(503)
-          .json({
-            error:
-              'Configure YOUTUBE_API_KEY e SUPABASE_SERVICE_ROLE_KEY no backend e nos secrets do GitHub Actions.',
-          });
+        res.status(503).json({
+          error:
+            'Configure YOUTUBE_API_KEY e SUPABASE_SERVICE_ROLE_KEY no backend e nos secrets do GitHub Actions.',
+        });
         return;
       }
       const result = await res.locals.db.rpc('enqueue_sync', { p_mode: mode });
@@ -87,15 +85,13 @@ export function createApp(makeDb = userDb) {
           /* Queued job remains durable; the scheduled worker will pick it up. */
         }
       }
-      res
-        .status(202)
-        .json({
-          jobId: result.data,
-          dispatched,
-          message: dispatched
-            ? 'Sincronização enviada ao GitHub Actions.'
-            : 'Solicitação salva. A execução será iniciada pelo próximo worker agendado.',
-        });
+      res.status(202).json({
+        jobId: result.data,
+        dispatched,
+        message: dispatched
+          ? 'Sincronização enviada ao GitHub Actions.'
+          : 'Solicitação salva. A execução será iniciada pelo próximo worker agendado.',
+      });
     } catch (e) {
       next(e);
     }
@@ -116,14 +112,12 @@ export function createApp(makeDb = userDb) {
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint não encontrado.' }));
   app.use(
     (error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      res
-        .status(error instanceof z.ZodError ? 400 : 500)
-        .json({
-          error:
-            error instanceof z.ZodError
-              ? 'Parâmetros inválidos.'
-              : 'Não foi possível concluir a solicitação.',
-        });
+      res.status(error instanceof z.ZodError ? 400 : 500).json({
+        error:
+          error instanceof z.ZodError
+            ? 'Parâmetros inválidos.'
+            : 'Não foi possível concluir a solicitação.',
+      });
     },
   );
   return app;
