@@ -299,17 +299,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
-.vocabulary-card {
-  padding: 16px;
-  border: 1px solid var(--ui-border);
-  border-radius: 10px;
-  background: var(--ui-surface);
-  min-width: 0;
-}
-.vocabulary-card h3 {
-  font-size: 16px;
-  margin: 12px 0;
-}
 .term-cloud {
   display: flex;
   gap: 6px;
@@ -324,9 +313,6 @@
   border: 1px solid var(--ui-border);
   border-radius: 6px;
   overflow-wrap: anywhere;
-}
-.vocabulary-card > .mantine-Group-root {
-  margin-top: 14px;
 }
 .saved-list {
   display: grid;
@@ -772,5 +758,97 @@
   }
   .saved-list article {
     padding: 14px;
+  }
+}
+
+/* Compact shared vocabularies: independent of the timeline term lists. */
+.vocabulary-management .group-grid {
+  padding: 16px;
+  gap: 12px;
+}
+.vocabulary-card {
+  display: grid;
+  grid-template-rows: auto minmax(46px, 1fr) auto;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: var(--ui-surface);
+  min-width: 0;
+}
+.vocabulary-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.vocabulary-heading > div {
+  min-width: 0;
+}
+.vocabulary-heading h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.vocabulary-heading > .mantine-Badge-root {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.vocabulary-meta {
+  font-size: 11px;
+  color: var(--ui-muted);
+}
+.vocabulary-terms {
+  margin: 0;
+  gap: 5px;
+  align-content: flex-start;
+  align-items: flex-start;
+  max-height: 72px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+.vocabulary-terms span {
+  font-size: 11px;
+  padding: 2px 7px;
+  line-height: 1.5;
+  border-radius: 5px;
+}
+.vocabulary-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--ui-border);
+  padding-top: 8px;
+  margin-top: 0;
+}
+.vocabulary-actions .mantine-Button-root {
+  height: 28px;
+  padding-inline: 9px;
+  font-size: 12px;
+}
+.vocabulary-actions .delete-group {
+  color: #ac3026;
+}
+[data-mantine-color-scheme='dark'] .vocabulary-actions .delete-group {
+  color: #ffb4ab;
+}
+.vocabulary-management > .research-disclaimer {
+  margin: 0;
+  padding: 0 16px 16px;
+  max-width: none;
+}
+@media (min-width: 1600px) {
+  .vocabulary-management .group-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .vocabulary-management .group-grid {
+    padding: 12px;
+    gap: 10px;
+  }
+  .vocabulary-management > .research-disclaimer {
+    padding: 0 12px 12px;
   }
 }

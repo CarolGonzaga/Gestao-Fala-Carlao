@@ -55,13 +55,13 @@ export function GroupManager() {
     }
   }
   return (
-    <section className="panel research-management">
+    <section className="panel research-management vocabulary-management">
       <div className="panel-heading">
         <div>
           <h2>Vocabulários de pesquisa</h2>
           <p>Listas compartilhadas entre administradores. Cada lista combina seus termos com OU.</p>
         </div>
-        <Button leftSection={<Plus size={15} />} onClick={() => edit()}>
+        <Button size="sm" leftSection={<Plus size={15} />} onClick={() => edit()}>
           Novo agrupamento
         </Button>
       </div>
@@ -73,19 +73,30 @@ export function GroupManager() {
       <div className="group-grid">
         {groups.data?.map((g) => (
           <article className="vocabulary-card" key={g.id}>
-            <div>
-              <Badge color={g.enabled ? 'yellow' : 'gray'} variant="light">
-                {g.kind === 'theme' ? 'Tema' : g.kind === 'role' ? 'Cargo' : 'Organização'} ·{' '}
+            <div className="vocabulary-heading">
+              <div>
+                <h3>{g.name}</h3>
+                <span className="vocabulary-meta">
+                  {g.kind === 'theme' ? 'Tema' : g.kind === 'role' ? 'Cargo' : 'Organização'}
+                  {' · '}
+                  {g.terms.length} {g.terms.length === 1 ? 'termo' : 'termos'}
+                </span>
+              </div>
+              <Badge size="sm" color={g.enabled ? 'green' : 'gray'} variant="light">
                 {g.enabled ? 'Ativo' : 'Inativo'}
               </Badge>
-              <h3>{g.name}</h3>
             </div>
-            <div className="term-cloud">
+            <div
+              className="term-cloud vocabulary-terms"
+              tabIndex={0}
+              role="group"
+              aria-label={`Palavras-chave de ${g.name}`}
+            >
               {g.terms.map((t) => (
                 <span key={t}>{t}</span>
               ))}
             </div>
-            <Group mt="md">
+            <Group className="vocabulary-actions" gap={8}>
               <Button
                 size="xs"
                 variant="default"
@@ -99,10 +110,12 @@ export function GroupManager() {
                 color="red"
                 variant="subtle"
                 loading={busy}
+                className="delete-group"
+                aria-label={`Excluir agrupamento ${g.name}`}
                 leftSection={<Trash2 size={13} />}
                 onClick={() => remove(g)}
               >
-                Excluir agrupamento
+                Excluir
               </Button>
             </Group>
           </article>

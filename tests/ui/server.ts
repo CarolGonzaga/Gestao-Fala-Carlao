@@ -42,14 +42,47 @@ const rows: SearchRow[] = [
   },
 ];
 let groups: any[] = [
+  { name: 'Diretoria', kind: 'role', terms: ['diretor', 'diretora', 'diretores'] },
   {
-    id: '00000000-0000-4000-8000-000000000021',
+    name: 'Executivos',
+    kind: 'role',
+    terms: ['executivo', 'executiva', 'empresário', 'empresária'],
+  },
+  {
     name: 'Irrigação',
     kind: 'theme',
-    terms: ['irrigação', 'pivô central'],
-    enabled: true,
+    terms: ['irrigação', 'sistemas de irrigação', 'agricultura irrigada', 'pivô central'],
   },
-];
+  {
+    name: 'Pecuária',
+    kind: 'theme',
+    terms: ['pecuária', 'bovinocultura', 'produção animal', 'gado'],
+  },
+  {
+    name: 'Pesquisa e instituições',
+    kind: 'role',
+    terms: ['pesquisador', 'pesquisadora', 'representante'],
+  },
+  {
+    name: 'Presidência / CEO',
+    kind: 'role',
+    terms: ['presidente', 'presidenta', 'CEO', 'chief executive officer'],
+  },
+  {
+    name: 'Sustentabilidade',
+    kind: 'theme',
+    terms: [
+      'sustentabilidade',
+      'desenvolvimento sustentável',
+      'agricultura sustentável',
+      'produção sustentável',
+    ],
+  },
+].map((g, i) => ({
+  ...g,
+  id: '00000000-0000-4000-8000-' + String(i + 21).padStart(12, '0'),
+  enabled: true,
+}));
 let saved: any[] = [];
 const server = await createServer({
   configFile: false,
@@ -174,7 +207,7 @@ const server = await createServer({
             else if (path?.startsWith('/research/groups')) {
               const id = path.split('/')[3];
               if (req.method === 'POST')
-                groups.push({ ...body, id: '00000000-0000-4000-8000-000000000022' });
+                groups.push({ ...body, id: crypto.randomUUID() });
               if (req.method === 'PATCH')
                 groups = groups.map((g) => (g.id === id ? { ...g, ...body } : g));
               if (req.method === 'DELETE') groups = groups.filter((g) => g.id !== id);
