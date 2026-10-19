@@ -58,6 +58,19 @@ const server = await createServer({
     react(),
     {
       name: 'qa-fixture-api',
+      enforce: 'pre',
+      transform(code, id) {
+        if (id.replaceAll('\\', '/').split('?')[0].endsWith('/src/lib.ts'))
+          return code
+            .replace(
+              "import { createClient } from '@supabase/supabase-js';",
+              "import { supabase } from '../tests/ui/supabase';",
+            )
+            .replace(
+              'export const supabase = url && key ? createClient(url, key) : null;',
+              'export { supabase };',
+            );
+      },
       configureServer(s) {
         s.middlewares.use('/api', async (req, res) => {
           try {
@@ -66,16 +79,92 @@ const server = await createServer({
             const body = source ? JSON.parse(source) : undefined;
             const path = (req.url ?? '').split('?')[0];
             let result: unknown = {};
-            if (path === '/research/search') {
+            const scenario = new URL(req.headers.referer ?? 'http://localhost').searchParams.get(
+              'scenario',
+            );
+            if (scenario === 'loading') await new Promise((r) => setTimeout(r, 2500));
+            if (scenario === 'error' && !path?.startsWith('/fixture'))
+              throw new Error('Falha de teste ao consultar os dados.');
+            if (path === '/config')
+              result = {
+                youtube: true,
+                worker: true,
+                dispatch: false,
+                schedule: '08:00, 14:00, 20:00',
+              };
+            else if (path === '/sync')
+              result = { message: 'Solicitação de teste salva. Nenhum worker real foi disparado.' };
+            else if (path === '/fixture/rpc')
+              result = {
+                data: {
+                  total: rows.length,
+                  views: 420,
+                  likes: 5,
+                  comments: 2,
+                  views_known: 2,
+                  likes_known: 1,
+                  comments_known: 1,
+                  oldest: rows[0].published_at,
+                  newest: rows[1].published_at,
+                },
+                error: null,
+              };
+            else if (path === '/fixture/table') {
+              let data: unknown;
+              if (body.table === 'channels')
+                data = {
+                  id: 'qa-channel',
+                  title: 'Fala Carlão',
+                  handle: '@falacarlao',
+                  thumbnail_url: null,
+                  uploads_playlist_id: 'qa-playlist',
+                  last_synced_at: '2026-10-19T12:00:00Z',
+                };
+              else if (body.table === 'sync_jobs')
+                data =
+                  scenario === 'empty'
+                    ? []
+                    : [
+                        {
+                          id: 'qa-job',
+                          mode: 'full',
+                          status:
+                            scenario === 'active'
+                              ? 'running'
+                              : scenario === 'failed'
+                                ? 'failed'
+                                : 'completed',
+                          phase: 'done',
+                          processed: 2,
+                          inserted: 2,
+                          updated: 0,
+                          unavailable: 0,
+                          api_requests: 3,
+                          error: null,
+                          created_at: '2026-10-19T11:59:00Z',
+                          started_at: '2026-10-19T11:59:00Z',
+                          finished_at: '2026-10-19T12:00:00Z',
+                          heartbeat_at: '2026-10-19T12:00:00Z',
+                        },
+                      ];
+              else data = scenario === 'empty' ? [] : rows;
+              result =
+                scenario === 'error'
+                  ? { data: null, error: { message: 'Falha de teste ao consultar os dados.' } }
+                  : { data, error: null, count: scenario === 'empty' ? 0 : rows.length };
+            } else if (path === '/research/search') {
               const criteria = compileResearch(researchSchema.parse(body), groups);
               result = {
-                total: rows.length,
-                byYear: [
-                  { year: 2007, count: 1 },
-                  { year: 2010, count: 1 },
-                ],
+                total: scenario === 'empty' ? 0 : rows.length,
+                byYear:
+                  scenario === 'empty'
+                    ? []
+                    : [
+                        { year: 2007, count: 1 },
+                        { year: 2010, count: 1 },
+                      ],
                 terms: [...criteria.all, ...criteria.any, ...criteria.groups.flat()],
-                rows: rows.map((row) => {
+                rows: (scenario === 'empty' ? [] : rows).map((row) => {
                   const { description, ...rest } = row;
                   return { ...rest, evidence: evidenceForRow(row, criteria) };
                 }),

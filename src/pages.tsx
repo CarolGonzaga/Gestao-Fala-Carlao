@@ -2,29 +2,24 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Anchor,
-  Avatar,
   Badge,
   Button,
   Drawer,
   Group,
   Menu,
   Pagination,
-  Progress,
   Select,
   Skeleton,
   Table,
   TextInput,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import {
   ArrowDownToLine,
   ArrowRight,
-  CalendarDays,
-  Check,
   ChevronDown,
-  Clock3,
   ExternalLink,
   Eye,
   FileSpreadsheet,
@@ -36,29 +31,13 @@ import {
   RefreshCw,
   Search,
   SlidersHorizontal,
-  Sparkles,
-  Wifi,
-  Youtube,
 } from 'lucide-react';
 import type { Channel, Job, Summary, Video } from '../shared/types';
 import { applyFilters, defaults, filterSchema, type Filters } from '../shared/filters';
 import { api, date, nextSchedule, number, supabase, thumbnail } from './lib';
 import { Description } from './Description';
-function useJobs() {
-  return useQuery({
-    queryKey: ['jobs'],
-    refetchInterval: 15000,
-    queryFn: async () => {
-      const r = await supabase!
-        .from('sync_jobs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (r.error) throw r.error;
-      return r.data as Job[];
-    },
-  });
-}
+import { useResearchOverview } from './research/Overview';
+import { useJobs } from './useJobs';
 function useSummary() {
   return useQuery({
     queryKey: ['summary'],
@@ -137,12 +116,13 @@ export function Dashboard({
 }: {
   channel: Channel | null;
   ready: boolean;
-  onNavigate: (p: 'videos' | 'sync') => void;
+  onNavigate: (p: 'videos' | 'sync' | 'research' | 'timeline') => void;
   onImport: () => void;
   busy: boolean;
 }) {
   const summary = useSummary(),
     jobs = useJobs();
+  const coverage = useResearchOverview();
   const recent = useQuery({
     queryKey: ['recent'],
     queryFn: async () => {
@@ -156,227 +136,183 @@ export function Dashboard({
     },
   });
   const stats = summary.data;
+  const latest = jobs.data?.[0];
   const cards = [
-    {
-      label: 'Vídeos no acervo',
-      value: stats?.total,
-      icon: Film,
-      note: 'Histórias catalogadas',
-      known: undefined,
-    },
-    {
-      label: 'Visualizações',
-      value: stats?.views,
-      icon: Eye,
-      note: 'Em todo o acervo',
-      known: stats?.views_known,
-    },
-    {
-      label: 'Curtidas',
-      value: stats?.likes,
-      icon: Heart,
-      note: 'Interações registradas',
-      known: stats?.likes_known,
-    },
+    { label: 'Total de vídeos', value: stats?.total, icon: Film, known: undefined },
+    { label: 'Visualizações', value: stats?.views, icon: Eye, known: stats?.views_known },
+    { label: 'Curtidas', value: stats?.likes, icon: Heart, known: stats?.likes_known },
     {
       label: 'Comentários',
       value: stats?.comments,
       icon: MessageCircle,
-      note: 'Conversas que continuam',
       known: stats?.comments_known,
     },
   ];
   return (
     <>
       {summary.isError && <ErrorState retry={() => summary.refetch()} />}
-      <section className="hero">
-        <div className="hero-copy">
-          <div className="hero-chip">
-            <span className="tiny-dot" /> O ACERVO DO FALA CARLÃO
-          </div>
-          <h2>
-            Boas conversas
-            <br />
-            merecem ser <em>reencontradas.</em>
-          </h2>
-          <p>
-            Um lugar para explorar o passado, acompanhar o presente
-            <br className="desktop-break" /> e preservar cada história do canal.
-          </p>
-          <Button
-            variant="white"
-            color="dark"
-            rightSection={<ArrowRight size={17} />}
-            onClick={() => onNavigate('videos')}
-          >
-            Explorar acervo
-          </Button>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-circle" />
-          <div className="hero-word">
-            FALA
-            <br />
-            <b>CARLÃO</b>
-            <span>BOA CONVERSA. SEMPRE.</span>
-          </div>
-          <span className="hero-play">
-            <Play size={30} fill="currentColor" />
-          </span>
-        </div>
-      </section>
-      <div className="section-heading">
-        <div>
-          <span className="section-kicker">O CANAL EM NÚMEROS</span>
-          <h2>Um acervo que conta histórias.</h2>
-        </div>
-        <span className="muted small">
-          <Clock3 size={14} />{' '}
-          {channel?.last_synced_at
-            ? `Atualizado em ${date(channel.last_synced_at, true)}`
-            : 'Aguardando primeira importação'}
-        </span>
-      </div>
-      <div className="stats-grid">
+      <div className="stats-grid" aria-label="Resumo do acervo">
         {cards.map((c) => (
           <article className="stat-card" key={c.label}>
             <div className="stat-top">
               <span>{c.label}</span>
-              <c.icon size={19} />
+              <c.icon size={18} aria-hidden="true" />
             </div>
             {summary.isPending ? (
-              <Skeleton height={40} width="65%" mt={20} />
+              <Skeleton height={34} width="65%" mt={12} />
             ) : (
               <strong>{number(c.value)}</strong>
             )}
-            <small>
-              {c.known != null && c.known < (stats?.total ?? 0)
-                ? `${number(c.known)} de ${number(stats?.total)} com dados disponíveis`
-                : c.note}
-            </small>
+            {c.known != null && c.known < (stats?.total ?? 0) && (
+              <small>
+                {number(c.known)} de {number(stats?.total)} vídeos com dados disponíveis
+              </small>
+            )}
           </article>
         ))}
       </div>
-      <div className="dashboard-grid">
-        <section className="panel recent-panel">
-          <div className="panel-heading">
-            <div>
-              <h2>Últimas histórias</h2>
-              <p>Os vídeos mais recentes do canal.</p>
-            </div>
-            <Button
-              variant="subtle"
-              color="dark"
-              size="xs"
-              rightSection={<ArrowRight size={14} />}
-              onClick={() => onNavigate('videos')}
-            >
-              Ver todos
-            </Button>
-          </div>
-          {recent.isPending ? (
-            <div className="skeleton-list">
-              {[0, 1, 2].map((i) => (
-                <Skeleton height={70} key={i} />
-              ))}
-            </div>
-          ) : recent.isError ? (
-            <ErrorState retry={() => recent.refetch()} />
-          ) : !recent.data?.length ? (
-            <Empty
-              title="Sua próxima descoberta começa aqui."
-              description="Importe o histórico do canal para reunir todas as conversas neste acervo."
-              action={
-                <Button
-                  variant="light"
-                  leftSection={<ArrowDownToLine size={16} />}
-                  loading={busy}
-                  onClick={onImport}
-                >
-                  Importar histórico completo
-                </Button>
-              }
-            />
-          ) : (
-            <div className="recent-list">
-              {recent.data.map((v) => (
-                <a
-                  className="recent-row"
-                  key={v.youtube_video_id}
-                  href={v.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <VideoThumb video={v} />
-                  <div>
-                    <b>{v.title}</b>
-                    <small>
-                      {date(v.published_at)}
-                      <span>·</span>
-                      {number(v.views)} visualizações
-                    </small>
-                  </div>
-                  <ExternalLink size={16} />
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-        <section className="panel sync-card">
-          <div className="sync-card-icon">
-            <RefreshCw size={22} />
-          </div>
-          <h2>Sempre em sintonia.</h2>
-          <p>O acervo acompanha o canal com três atualizações programadas por dia.</p>
-          <div className="schedule-chips">
-            <span>08:00</span>
-            <span>14:00</span>
-            <span>20:00</span>
-          </div>
-          <span className="small muted">Horário de Brasília · GitHub Actions</span>
-          <div className="sync-card-status">
-            <span className={`tiny-dot ${ready ? 'green' : 'amber'}`} />
-            {jobs.data?.[0]?.status === 'running'
-              ? 'Sincronização em andamento'
-              : ready
-                ? 'Integração configurada'
-                : 'Configuração pendente'}
-          </div>
+      <section className="panel operational-panel">
+        <div className="panel-heading">
+          <h2>Estado do acervo</h2>
           <Button
-            variant="default"
-            fullWidth
-            rightSection={<ArrowRight size={16} />}
+            variant="subtle"
+            size="xs"
+            rightSection={<ArrowRight size={14} />}
             onClick={() => onNavigate('sync')}
           >
-            Acompanhar sincronizações
+            Ver sincronizações
           </Button>
-        </section>
-      </div>
-      <div className="timeline-strip">
-        <div>
-          <CalendarDays size={21} />
-          <span>
-            Primeira história<strong>{date(stats?.oldest)}</strong>
-          </span>
         </div>
-        <div className="timeline-line">
-          <span />
-          <i />
-          <span />
+        {jobs.isError && <ErrorState retry={() => jobs.refetch()} />}
+        <dl className="operational-grid">
+          <div>
+            <dt>Última sincronização concluída</dt>
+            <dd>{date(channel?.last_synced_at, true)}</dd>
+          </div>
+          <div>
+            <dt>Última execução</dt>
+            <dd>
+              {jobs.isPending ? (
+                'Carregando…'
+              ) : latest ? (
+                <Badge color={statusColor[latest.status]} variant="light">
+                  {statusLabel[latest.status]}
+                </Badge>
+              ) : (
+                'Nenhuma execução'
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Vídeo mais antigo</dt>
+            <dd>{date(stats?.oldest)}</dd>
+          </div>
+          <div>
+            <dt>Vídeo mais recente</dt>
+            <dd>{date(stats?.newest)}</dd>
+          </div>
+          <div>
+            <dt>Vídeos sem descrição</dt>
+            <dd>{coverage.isError ? 'Indisponível' : number(coverage.data?.withoutDescription)}</dd>
+          </div>
+        </dl>
+        {!ready && (
+          <p className="operational-note muted">
+            Configuração da sincronização pendente. Confira as integrações em Configurações.
+          </p>
+        )}
+      </section>
+      <nav className="quick-links" aria-label="Acesso rápido">
+        {(
+          [
+            {
+              page: 'research',
+              title: 'Pesquisa avançada',
+              text: 'Pesquisar títulos e descrições',
+              icon: Search,
+            },
+            {
+              page: 'timeline',
+              title: 'Linha do tempo',
+              text: 'Comparar padrões de títulos',
+              icon: History,
+            },
+            {
+              page: 'videos',
+              title: 'Acervo de vídeos',
+              text: 'Consultar e exportar vídeos',
+              icon: Film,
+            },
+          ] as const
+        ).map((link) => (
+          <button key={link.page} onClick={() => onNavigate(link.page)}>
+            <link.icon size={20} aria-hidden="true" />
+            <span>
+              <strong>{link.title}</strong>
+              <small>{link.text}</small>
+            </span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        ))}
+      </nav>
+      <section className="panel recent-panel">
+        <div className="panel-heading">
+          <h2>Vídeos recentes</h2>
+          <Button variant="subtle" size="xs" onClick={() => onNavigate('videos')}>
+            Ver acervo
+          </Button>
         </div>
-        <div>
-          <History size={21} />
-          <span>
-            História mais recente<strong>{date(stats?.newest)}</strong>
-          </span>
-        </div>
-        <p>Do primeiro vídeo à próxima conversa.</p>
-      </div>
+        {recent.isPending ? (
+          <div className="skeleton-list">
+            <Skeleton height={70} />
+            <Skeleton height={70} />
+          </div>
+        ) : recent.isError ? (
+          <ErrorState retry={() => recent.refetch()} />
+        ) : !recent.data?.length ? (
+          <Empty
+            title="Nenhum vídeo cadastrado"
+            description="Importe os vídeos públicos do canal para preencher o acervo."
+            action={
+              <Button
+                variant="default"
+                loading={busy}
+                leftSection={<ArrowDownToLine size={16} />}
+                onClick={onImport}
+              >
+                Importar histórico completo
+              </Button>
+            }
+          />
+        ) : (
+          <div className="recent-list">
+            {recent.data.map((v) => (
+              <a
+                className="recent-row"
+                key={v.youtube_video_id}
+                href={v.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <VideoThumb video={v} />
+                <div>
+                  <b>{v.title}</b>
+                  <small>
+                    {date(v.published_at)} · {number(v.views)} visualizações
+                  </small>
+                </div>
+                <ExternalLink size={15} aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }
 
 export function VideoPage() {
+  const smallScreen = useMediaQuery('(max-width: 650px)');
   const [filters, setFilters] = useState<Filters>(defaults),
     [search, setSearch] = useState(''),
     [debounced] = useDebouncedValue(search, 350),
@@ -429,22 +365,25 @@ export function VideoPage() {
   const count = valid.success ? videos.data?.total : 0;
   return (
     <>
-      <section className="panel catalogue">
+      <section className="panel catalogue" aria-busy={videos.isFetching}>
+        <span className="sr-only" role="status">
+          {videos.isFetching ? 'Carregando vídeos…' : ''}
+        </span>
         <div className="panel-heading">
           <div>
             <h2>
-              Acervo de vídeos{' '}
+              Vídeos cadastrados{' '}
               <Badge color="gray" variant="light" ml={8}>
                 {number(count)} vídeos
               </Badge>
             </h2>
-            <p>O canal completo, a uma busca de distância.</p>
           </div>
           <Menu position="bottom-end">
             <Menu.Target>
               <Button
                 variant="default"
                 loading={exporting}
+                aria-busy={exporting}
                 leftSection={<ArrowDownToLine size={16} />}
                 rightSection={<ChevronDown size={14} />}
               >
@@ -455,14 +394,14 @@ export function VideoPage() {
               <Menu.Label>Todos os resultados dos filtros</Menu.Label>
               <Menu.Item
                 leftSection={<ArrowDownToLine size={15} />}
-                disabled={!valid.success}
+                disabled={!valid.success || exporting}
                 onClick={() => download('csv')}
               >
                 Exportar CSV
               </Menu.Item>
               <Menu.Item
                 leftSection={<FileSpreadsheet size={15} />}
-                disabled={!valid.success}
+                disabled={!valid.success || exporting}
                 onClick={() => download('xlsx')}
               >
                 Exportar Excel (.xlsx)
@@ -473,7 +412,7 @@ export function VideoPage() {
         <div className="filter-bar">
           <TextInput
             className="search-input"
-            placeholder="Encontre uma história pelo título…"
+            placeholder="Pesquisar por título"
             aria-label="Pesquisar por título"
             leftSection={<Search size={17} />}
             value={search}
@@ -560,10 +499,10 @@ export function VideoPage() {
             height="clamp(320px, 54vh, 720px)"
             minHeight={320}
             highlightOnHover
-            verticalSpacing="md"
+            verticalSpacing="sm"
             fetching={videos.isFetching}
             records={valid.success ? (videos.data?.rows ?? []) : []}
-            pinFirstColumn
+            pinFirstColumn={!smallScreen}
             sortStatus={
               {
                 columnAccessor: filters.sort,
@@ -578,8 +517,8 @@ export function VideoPage() {
               <Empty
                 title={
                   filters.q || filters.from || filters.year
-                    ? 'Nenhuma história com esses filtros.'
-                    : 'O acervo está esperando a primeira importação.'
+                    ? 'Nenhum vídeo encontrado.'
+                    : 'Nenhum vídeo cadastrado.'
                 }
                 description="Ajuste os filtros ou acompanhe a configuração na página Sincronizações."
               />
@@ -677,9 +616,11 @@ export function VideoPage() {
         )}
         <div className="table-pagination">
           <span>
-            {count
-              ? `${number((filters.page - 1) * filters.pageSize + 1)}–${number(Math.min(filters.page * filters.pageSize, count))} de ${number(count)} vídeos`
-              : '0 vídeos'}
+            {videos.isPending
+              ? 'Carregando vídeos…'
+              : count
+                ? `${number((filters.page - 1) * filters.pageSize + 1)}–${number(Math.min(filters.page * filters.pageSize, count))} de ${number(count)} vídeos`
+                : '0 vídeos'}
             <small>Ordenação aplicada a todo o acervo</small>
           </span>
           <Group gap="sm">
@@ -707,7 +648,8 @@ export function VideoPage() {
         onClose={() => setSelected(null)}
         position="right"
         size="lg"
-        title="Uma história do acervo"
+        title="Detalhes do vídeo"
+        closeButtonProps={{ 'aria-label': 'Fechar detalhes do vídeo' }}
       >
         {selected && (
           <div className="video-detail">
@@ -759,6 +701,19 @@ export function VideoPage() {
   );
 }
 
+function jobDuration(job: Job | undefined, now = new Date()) {
+  if (!job?.started_at) return '—';
+  return (
+    number(
+      Math.max(
+        0,
+        Math.round(
+          (+(job.finished_at ? new Date(job.finished_at) : now) - +new Date(job.started_at)) / 1000,
+        ),
+      ),
+    ) + ' s'
+  );
+}
 export function SyncPage({
   channel,
   config,
@@ -772,66 +727,86 @@ export function SyncPage({
 }) {
   const jobs = useJobs(),
     summary = useSummary();
-  const [now, setNow] = useState(new Date());
+  const [now, setNow] = useState(new Date()),
+    [selectedJob, setSelectedJob] = useState<Job | null>(null);
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
   const active = jobs.data?.find((j) => j.status === 'running' || j.status === 'queued');
-  const last = jobs.data?.[0];
+  const last = active ?? jobs.data?.[0];
   return (
     <>
-      <div className="sync-overview">
-        <section className="panel connection-panel">
-          <div className="panel-heading">
-            <div className="connection-brand">
-              <Avatar src={channel?.thumbnail_url} color="red" size={48} radius="md">
-                <Youtube size={27} />
-              </Avatar>
-              <div>
-                <h2>{channel?.title ?? 'Fala Carlão'}</h2>
-                <p>@falacarlao · YouTube Data API v3</p>
-              </div>
-            </div>
-            <Badge variant="light" color={channel?.last_synced_at ? 'green' : 'yellow'}>
-              {channel?.last_synced_at ? 'Última coleta concluída' : 'Aguardando coleta'}
+      {jobs.isError && <ErrorState retry={() => jobs.refetch()} />}
+      <section className="panel sync-status-panel">
+        <div className="panel-heading">
+          <h2>Estado atual</h2>
+          {last && (
+            <Badge color={statusColor[last.status]} variant="light">
+              {statusLabel[last.status]}
             </Badge>
+          )}
+        </div>
+        <dl className="operational-grid sync-state">
+          <div>
+            <dt>Última execução</dt>
+            <dd>
+              {jobs.isPending
+                ? 'Carregando…'
+                : last
+                  ? date(last.started_at ?? last.created_at, true)
+                  : 'Nenhuma execução'}
+            </dd>
           </div>
-          <dl>
-            <div>
-              <dt>ID do canal</dt>
-              <dd>{channel?.id ?? 'Será identificado na primeira importação'}</dd>
-            </div>
-            <div>
-              <dt>Playlist de uploads</dt>
-              <dd>{channel?.uploads_playlist_id ?? 'Aguardando identificação do canal'}</dd>
-            </div>
-            <div>
-              <dt>Última sincronização concluída</dt>
-              <dd>{date(channel?.last_synced_at, true)}</dd>
-            </div>
-            <div>
-              <dt>Próxima execução prevista</dt>
-              <dd>{date(nextSchedule(now), true)} · Brasília</dd>
-            </div>
-          </dl>
-          <div className="connection-note">
-            <Wifi size={16} />
-            {config?.youtube && config.worker
-              ? 'Credenciais presentes. A conexão com o YouTube será verificada pelo worker.'
-              : 'Configure YOUTUBE_API_KEY e SUPABASE_SERVICE_ROLE_KEY no backend e no GitHub.'}
+          <div>
+            <dt>Duração</dt>
+            <dd>{jobDuration(last, now)}</dd>
           </div>
-        </section>
-        <section className="panel import-panel">
-          <span className="section-kicker">DA PRIMEIRA HISTÓRIA ATÉ HOJE</span>
-          <h2>Seu canal por completo.</h2>
-          <p>
-            A importação percorre todas as páginas de uploads, incluindo os vídeos mais antigos
-            disponíveis. Você pode fechar esta página durante o processo.
-          </p>
+          <div>
+            <dt>Registros processados</dt>
+            <dd>{number(last?.processed)}</dd>
+          </div>
+          <div>
+            <dt>Próxima execução prevista</dt>
+            <dd>
+              {date(nextSchedule(now), true)}
+              <small>Horário de Brasília</small>
+            </dd>
+          </div>
+        </dl>
+        {active && (
+          <div className="active-job" role="status">
+            <RefreshCw
+              size={17}
+              className={active.status === 'running' ? 'spin' : ''}
+              aria-hidden="true"
+            />
+            <div>
+              <strong>
+                {active.status === 'running' ? 'Atualizando vídeos…' : 'Solicitação na fila'}
+              </strong>
+              <p>
+                {number(active.processed)} registros processados ·{' '}
+                {active.phase === 'discovery' ? 'Descoberta de uploads' : 'Atualização do catálogo'}
+              </p>
+              <small className="muted">
+                Total disponível ao concluir a leitura da playlist. Última atividade:{' '}
+                {date(active.heartbeat_at, true)}
+              </small>
+              {active.error && <p>{active.error}</p>}
+            </div>
+          </div>
+        )}
+      </section>
+      <section className="panel sync-actions">
+        <div>
+          <h2>Ações de sincronização</h2>
+          <p className="muted">A execução continua mesmo se você fechar a página.</p>
+        </div>
+        <div className="sync-action-buttons">
           <Button
-            fullWidth
-            leftSection={<ArrowDownToLine size={17} />}
+            variant="default"
+            leftSection={<ArrowDownToLine size={16} />}
             loading={busy}
             disabled={!!active}
             onClick={() => requestSync('full')}
@@ -839,120 +814,76 @@ export function SyncPage({
             Importar histórico completo
           </Button>
           <Button
-            fullWidth
             variant="subtle"
-            color="dark"
-            mt="xs"
-            leftSection={<RefreshCw size={15} />}
+            leftSection={<RefreshCw size={16} />}
             loading={busy}
             disabled={!!active}
             onClick={() => requestSync('retry')}
           >
-            Reprocessar registros com falha
+            Reprocessar falhas
           </Button>
-          <small>Sem duplicações. Com retomada automática por lote.</small>
-        </section>
-      </div>
-      {active && (
-        <div className="panel active-job">
-          <div>
-            <RefreshCw size={20} className={active.status === 'running' ? 'spin' : ''} />
-            <div>
-              <h3>
-                {statusLabel[active.status]} · {modeLabel[active.mode]}
-              </h3>
-              <p>
-                {number(active.processed)} vídeos processados · Etapa:{' '}
-                {active.phase === 'discovery' ? 'descoberta de uploads' : 'atualização do catálogo'}
-              </p>
-            </div>
-            <Badge color={statusColor[active.status]}>{statusLabel[active.status]}</Badge>
-          </div>
-          <Progress value={100} animated={active.status === 'running'} color="yellow" size="xs" />
-          {active.error && <p className="small muted">{active.error}</p>}
-          <p className="small muted">
-            O total só será conhecido ao terminar a paginação da playlist. Última atividade:{' '}
-            {date(active.heartbeat_at, true)}
-          </p>
         </div>
-      )}
-      <div className="sync-metrics">
-        <div>
-          <span>Vídeos cadastrados</span>
-          <strong>{number(summary.data?.total)}</strong>
-        </div>
-        <div>
-          <span>Inseridos na última execução</span>
-          <strong>{number(last?.inserted)}</strong>
-        </div>
-        <div>
-          <span>Atualizados na última execução</span>
-          <strong>{number(last?.updated)}</strong>
-        </div>
-        <div>
-          <span>Indisponíveis na última execução</span>
-          <strong>{number(last?.unavailable)}</strong>
-        </div>
-      </div>
+      </section>
       <section className="panel jobs-panel">
         <div className="panel-heading">
-          <div>
-            <h2>Diário de sincronizações</h2>
-            <p>As 30 execuções mais recentes, com progresso persistido no banco.</p>
-          </div>
-          <Badge color="gray" variant="light">
-            3 vezes ao dia
-          </Badge>
+          <h2>Histórico</h2>
+          <span className="muted small">Até 30 execuções recentes</span>
         </div>
-        {jobs.isError ? (
-          <ErrorState retry={() => jobs.refetch()} />
-        ) : jobs.isPending ? (
-          <Skeleton height={160} m="lg" />
+        {jobs.isPending ? (
+          <Skeleton height={160} m="md" />
         ) : !jobs.data?.length ? (
-          <Empty
-            title="O primeiro capítulo ainda vai começar."
-            description="Configure as credenciais e importe o histórico completo para iniciar seu diário."
-          />
+          !jobs.isError && (
+            <Empty
+              title="Nenhuma sincronização registrada"
+              description="Use Sincronizar agora ou importe o histórico completo."
+            />
+          )
         ) : (
-          <Table.ScrollContainer minWidth={920}>
-            <Table verticalSpacing="md" horizontalSpacing="lg">
+          <Table.ScrollContainer minWidth={1030}>
+            <Table verticalSpacing="sm" horizontalSpacing="md">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Execução / modo</Table.Th>
+                  <Table.Th>Data</Table.Th>
+                  <Table.Th>Tipo</Table.Th>
                   <Table.Th>Status</Table.Th>
-                  <Table.Th>Processados</Table.Th>
-                  <Table.Th>Inseridos / atualizados</Table.Th>
                   <Table.Th>Duração</Table.Th>
-                  <Table.Th>Resultado</Table.Th>
+                  <Table.Th>Processados</Table.Th>
+                  <Table.Th>Inseridos</Table.Th>
+                  <Table.Th>Atualizados</Table.Th>
+                  <Table.Th>Falhas</Table.Th>
+                  <Table.Th>Detalhes</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {jobs.data.map((j) => (
                   <Table.Tr key={j.id}>
-                    <Table.Td>
-                      <b>{date(j.started_at ?? j.created_at, true)}</b>
-                      <small className="block muted">{modeLabel[j.mode]}</small>
-                    </Table.Td>
+                    <Table.Td>{date(j.started_at ?? j.created_at, true)}</Table.Td>
+                    <Table.Td>{modeLabel[j.mode]}</Table.Td>
                     <Table.Td>
                       <Badge color={statusColor[j.status]} variant="light">
                         {statusLabel[j.status]}
                       </Badge>
                     </Table.Td>
+                    <Table.Td>{jobDuration(j, now)}</Table.Td>
                     <Table.Td>{number(j.processed)}</Table.Td>
+                    <Table.Td>{number(j.inserted)}</Table.Td>
+                    <Table.Td>{number(j.updated)}</Table.Td>
                     <Table.Td>
-                      {number(j.inserted)} / {number(j.updated)}
+                      {j.error
+                        ? 'Erro registrado'
+                        : j.status === 'failed'
+                          ? 'Falha na execução'
+                          : '—'}
                     </Table.Td>
                     <Table.Td>
-                      {j.started_at && j.finished_at
-                        ? `${Math.max(0, Math.round((+new Date(j.finished_at) - +new Date(j.started_at)) / 1000))} s`
-                        : '—'}
-                    </Table.Td>
-                    <Table.Td className="job-error">
-                      {j.error ??
-                        (j.status === 'completed'
-                          ? `${number(j.api_requests)} requisições à API`
-                          : 'Aguardando término')}
-                      <small className="block muted">{j.id}</small>
+                      <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        aria-label={'Detalhes da execução de ' + date(j.created_at, true)}
+                        onClick={() => setSelectedJob(j)}
+                      >
+                        Detalhes
+                      </Button>
                     </Table.Td>
                   </Table.Tr>
                 ))}
@@ -961,10 +892,110 @@ export function SyncPage({
           </Table.ScrollContainer>
         )}
       </section>
-      <p className="table-note">
-        <Clock3 size={14} /> Horários previstos: 08:00, 14:00 e 20:00 em America/Sao_Paulo. A
-        execução depende do workflow publicado e pode sofrer atrasos no GitHub.
-      </p>
+      <details className="panel context-help technical-details">
+        <summary>Configuração técnica e agendamento</summary>
+        <dl className="technical-list">
+          <div>
+            <dt>Canal</dt>
+            <dd>{channel?.title ?? 'Fala Carlão'} · @falacarlao</dd>
+          </div>
+          <div>
+            <dt>ID do canal</dt>
+            <dd>{channel?.id ?? 'Aguardando identificação'}</dd>
+          </div>
+          <div>
+            <dt>Playlist de uploads</dt>
+            <dd>{channel?.uploads_playlist_id ?? 'Aguardando identificação'}</dd>
+          </div>
+          <div>
+            <dt>Última sincronização concluída</dt>
+            <dd>{date(channel?.last_synced_at, true)}</dd>
+          </div>
+          <div>
+            <dt>Vídeos cadastrados</dt>
+            <dd>{summary.isError ? 'Indisponível' : number(summary.data?.total)}</dd>
+          </div>
+        </dl>
+        <p>
+          {config?.youtube && config.worker
+            ? 'Credenciais cadastradas. Consulte o histórico para verificar o resultado da conexão com o YouTube.'
+            : 'Configuração pendente. Confira as integrações em Configurações.'}
+        </p>
+        <p>
+          Execuções previstas às 08h, 14h e 20h (Brasília). Os horários dependem do workflow
+          publicado e podem sofrer atrasos no GitHub.
+        </p>
+        <p>
+          Uma importação completa percorre todas as páginas de uploads públicos, incluindo vídeos
+          antigos. A retomada por lote evita duplicações.
+        </p>
+        <p>O histórico registra erros por execução; não há um contador de vídeos com falha.</p>
+      </details>
+      <Drawer
+        opened={!!selectedJob}
+        onClose={() => setSelectedJob(null)}
+        position="right"
+        title="Detalhes da sincronização"
+        size="md"
+        closeButtonProps={{ 'aria-label': 'Fechar detalhes da sincronização' }}
+      >
+        {selectedJob && (
+          <>
+            <Badge variant="light" color={statusColor[selectedJob.status]}>
+              {statusLabel[selectedJob.status]}
+            </Badge>
+            <dl className="technical-list">
+              <div>
+                <dt>ID da execução</dt>
+                <dd>{selectedJob.id}</dd>
+              </div>
+              <div>
+                <dt>Tipo</dt>
+                <dd>{modeLabel[selectedJob.mode]}</dd>
+              </div>
+              <div>
+                <dt>Criada em</dt>
+                <dd>{date(selectedJob.created_at, true)}</dd>
+              </div>
+              <div>
+                <dt>Início</dt>
+                <dd>{date(selectedJob.started_at, true)}</dd>
+              </div>
+              <div>
+                <dt>Fim</dt>
+                <dd>{date(selectedJob.finished_at, true)}</dd>
+              </div>
+              <div>
+                <dt>Duração</dt>
+                <dd>{jobDuration(selectedJob, now)}</dd>
+              </div>
+              <div>
+                <dt>Indisponíveis</dt>
+                <dd>{number(selectedJob.unavailable)}</dd>
+              </div>
+              <div>
+                <dt>Requisições à API</dt>
+                <dd>{number(selectedJob.api_requests)}</dd>
+              </div>
+              <div>
+                <dt>Última atividade</dt>
+                <dd>{date(selectedJob.heartbeat_at, true)}</dd>
+              </div>
+            </dl>
+            {selectedJob.error ? (
+              <Alert color="red" title="Erro registrado">
+                {selectedJob.error}
+              </Alert>
+            ) : (
+              <p className="muted">
+                {selectedJob.status === 'completed'
+                  ? 'Sincronização concluída.'
+                  : 'Nenhum erro registrado até o momento.'}
+              </p>
+            )}
+          </>
+        )}
+      </Drawer>
     </>
   );
 }

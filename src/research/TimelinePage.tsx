@@ -11,7 +11,7 @@ import {
   TextInput,
 } from '@mantine/core';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { ArrowRight, Clock3, GitCompareArrows, Search } from 'lucide-react';
+import { ArrowRight, GitCompareArrows } from 'lucide-react';
 import { timelineSchema, type TimelineQuery } from '../../shared/research';
 import { researchApi } from './api';
 import { date, number } from '../lib';
@@ -189,21 +189,6 @@ export default function TimelinePage() {
   }
   return (
     <div className="timeline-page">
-      <div className="research-intro">
-        <div className="research-intro-icon">
-          <Clock3 size={25} />
-        </div>
-        <div>
-          <span className="section-kicker">INVESTIGAÇÃO HISTÓRICA</span>
-          <h2>Compare nomes. Confira as evidências.</h2>
-          <p>Distribuição das datas de publicação usando os títulos atualmente armazenados.</p>
-        </div>
-      </div>
-      <Alert color="yellow" mb="lg">
-        Primeiras e últimas ocorrências não comprovam a data oficial de uma mudança editorial. A API
-        não oferece um histórico geral das alterações de títulos. Lacunas indicam números não
-        encontrados neste recorte, não episódios necessariamente inexistentes.
-      </Alert>
       <form
         className="panel timeline-form"
         onSubmit={(e) => {
@@ -262,12 +247,29 @@ export default function TimelinePage() {
           <Button
             type="submit"
             loading={query.isFetching}
+            aria-busy={query.isFetching}
             leftSection={<GitCompareArrows size={17} />}
           >
-            Comparar padrões
+            Analisar
           </Button>
         </div>
       </form>
+      <details className="context-help timeline-help">
+        <summary>Sobre esta análise</summary>
+        <p>
+          Primeiras e últimas ocorrências não comprovam a data oficial de uma mudança editorial. A
+          API não oferece um histórico geral das alterações de títulos. Lacunas indicam números não
+          encontrados neste recorte, não episódios necessariamente inexistentes.
+        </p>
+        <p>
+          Refine o padrão para uma série específica antes de investigar sequências. Séries
+          diferentes podem compartilhar prefixos e números. Só marcadores explícitos (“episódio”,
+          “ep.”, “episode” ou #) geram candidatos; anos e casos ambíguos ficam para revisão.
+        </p>
+      </details>
+      <span className="sr-only" role="status">
+        {query.isFetching ? 'Analisando títulos…' : ''}
+      </span>
       {(!valid.success || query.isError) && (
         <Alert color="red" my="lg">
           {!valid.success
@@ -280,6 +282,10 @@ export default function TimelinePage() {
       ) : (
         result && (
           <>
+            <p className="analysis-notice">
+              Os dados indicam ocorrências nos títulos atuais, não a data oficial de alterações
+              editoriais.
+            </p>
             <div className="pattern-comparison">
               <PatternPanel pattern={result.a} color="yellow" onOpen={setSelected} />
               {result.b && <PatternPanel pattern={result.b} color="teal" onOpen={setSelected} />}
@@ -370,7 +376,7 @@ export default function TimelinePage() {
                 </div>
               </div>
               <Table.ScrollContainer minWidth={800} h={440}>
-                <Table stickyHeader verticalSpacing="md" horizontalSpacing="lg">
+                <Table stickyHeader verticalSpacing="sm" horizontalSpacing="lg">
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Publicação</Table.Th>
@@ -442,11 +448,7 @@ export default function TimelinePage() {
           </>
         )
       )}
-      <p className="research-disclaimer">
-        Refine o padrão para uma série específica antes de investigar sequências. Séries diferentes
-        podem compartilhar prefixos e números. Só marcadores explícitos (“episódio”, “ep.”,
-        “episode” ou #) geram candidatos; anos e casos ambíguos ficam para revisão.
-      </p>
+
       <VideoDrawer
         id={selected}
         onClose={() => setSelected(null)}

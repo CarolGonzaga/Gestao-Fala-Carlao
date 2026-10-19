@@ -10,12 +10,15 @@ type Overview = {
   peakYear: { year: number; count: number } | null;
   groups: { id: string; name: string; kind: string; count: number }[];
 };
-export function ResearchOverview({ onResearch }: { onResearch: () => void }) {
-  const query = useQuery({
+export function useResearchOverview() {
+  return useQuery({
     queryKey: ['research-overview'],
     staleTime: 60000,
     queryFn: ({ signal }) => researchApi<Overview>('overview', undefined, signal),
   });
+}
+export function ResearchOverview({ onResearch }: { onResearch: () => void }) {
+  const query = useResearchOverview();
   if (query.isPending) return <Skeleton height={170} mt="lg" />;
   if (query.isError)
     return (
@@ -28,8 +31,7 @@ export function ResearchOverview({ onResearch }: { onResearch: () => void }) {
     <section className="panel research-overview">
       <div className="panel-heading">
         <div>
-          <span className="section-kicker">CAMINHOS PARA INVESTIGAR</span>
-          <h2>O que os metadados permitem pesquisar.</h2>
+          <h2>Cobertura dos metadados</h2>
         </div>
         <button className="research-link" onClick={onResearch}>
           Abrir pesquisa avançada <ArrowRight size={15} />
@@ -39,10 +41,6 @@ export function ResearchOverview({ onResearch }: { onResearch: () => void }) {
         <div>
           <span>Com descrição preenchida</span>
           <strong>{number(data.withDescription)}</strong>
-        </div>
-        <div>
-          <span>Sem descrição</span>
-          <strong>{number(data.withoutDescription)}</strong>
         </div>
         <div>
           <span>Ano com mais publicações</span>

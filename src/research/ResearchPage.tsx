@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Collapse,
+  CloseButton,
   Group,
   Menu,
   MultiSelect,
@@ -17,7 +18,7 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { DataTable, type DataTableSortStatus } from 'mantine-datatable';
 import {
@@ -114,6 +115,7 @@ function parseSort(order: ResearchQuery['order']): DataTableSortStatus<SearchRow
   return { columnAccessor, direction };
 }
 export default function ResearchPage() {
+  const smallScreen = useMediaQuery('(max-width: 650px)');
   const [draft, setDraft] = useState<ResearchQuery>({ ...researchDefaults }),
     [applied, setApplied] = useState<ResearchQuery>({ ...researchDefaults }),
     [debounced] = useDebouncedValue(draft, 400),
@@ -142,6 +144,31 @@ export default function ResearchPage() {
       JSON.stringify(value) !== JSON.stringify(researchDefaults[key as keyof ResearchQuery]) &&
       value !== undefined,
   );
+  const filterLabels: Record<string, string> = {
+    q: 'Texto',
+    all: 'Todas',
+    any: 'Qualquer',
+    none: 'Excluir',
+    phrases: 'Expressões',
+    titleTerms: 'No título',
+    descriptionTerms: 'Na descrição',
+    groupIds: 'Agrupamentos',
+    from: 'De',
+    to: 'Até',
+    year: 'Ano',
+    month: 'Mês',
+    viewsMin: 'Visualizações mín.',
+    viewsMax: 'Visualizações máx.',
+    likesMin: 'Curtidas mín.',
+    likesMax: 'Curtidas máx.',
+    commentsMin: 'Comentários mín.',
+    commentsMax: 'Comentários máx.',
+    prefix: 'Prefixo',
+    series: 'Série',
+    episodeMin: 'Episódio mín.',
+    episodeMax: 'Episódio máx.',
+    episodeStatus: 'Numeração',
+  };
   async function download(format: 'csv' | 'xlsx', detail: boolean) {
     setExporting(true);
     setError('');
@@ -155,23 +182,8 @@ export default function ResearchPage() {
   }
   return (
     <div className="research-page">
-      <div className="research-intro">
-        <div className="research-intro-icon">
-          <Search size={25} />
-        </div>
-        <div>
-          <span className="section-kicker">PESQUISE O QUE O ACERVO REALMENTE REGISTRA</span>
-          <h2>Uma pergunta. Evidências para investigar.</h2>
-          <p>
-            Busca textual nos metadados completos. Sem inferência de assunto, cargo ou identidade.
-          </p>
-        </div>
-        <Badge color="teal" variant="light">
-          Sem IA
-        </Badge>
-      </div>
       <Tabs value={tab} onChange={setTab} keepMounted={false}>
-        <Tabs.List mb="lg">
+        <Tabs.List mb="md">
           <Tabs.Tab value="results" leftSection={<Search size={15} />}>
             Pesquisar
           </Tabs.Tab>
@@ -206,8 +218,8 @@ export default function ResearchPage() {
             >
               <div className="research-main-input">
                 <TextInput
-                  label="O que você quer encontrar?"
-                  placeholder='Ex.: sustentabilidade -evento ou "presidente da empresa"'
+                  label="Pesquisar por palavra ou expressão"
+                  placeholder="Digite um termo para pesquisar"
                   size="md"
                   leftSection={<Search size={20} />}
                   value={draft.q}
@@ -219,6 +231,7 @@ export default function ResearchPage() {
                   size="md"
                   leftSection={<Search size={17} />}
                   loading={results.isFetching}
+                  aria-busy={results.isFetching}
                 >
                   Pesquisar
                 </Button>
@@ -231,7 +244,7 @@ export default function ResearchPage() {
                   onChange={(v) => change({ mode: v as ResearchQuery['mode'] })}
                 />
                 <Select
-                  label="Onde procurar"
+                  label="Onde pesquisar"
                   data={[
                     { value: 'both', label: 'Títulos e descrições' },
                     { value: 'title', label: 'Somente títulos' },
@@ -242,7 +255,7 @@ export default function ResearchPage() {
                 />
                 <MultiSelect
                   label="Temas, cargos ou organizações"
-                  placeholder="Qualquer texto também pode ser pesquisado"
+                  placeholder="Selecionar agrupamentos"
                   searchable
                   clearable
                   data={
@@ -278,7 +291,7 @@ export default function ResearchPage() {
                     setApplied({ ...researchDefaults });
                   }}
                 >
-                  Limpar tudo
+                  Limpar
                 </Button>
                 <Button
                   variant="subtle"
@@ -287,9 +300,45 @@ export default function ResearchPage() {
                   leftSection={<Bookmark size={14} />}
                   onClick={() => setTab('saved')}
                 >
-                  Salvar esta pesquisa
+                  Salvar pesquisa
                 </Button>
               </div>
+              {active.length > 0 && (
+                <div className="applied-filters" aria-label="Filtros aplicados">
+                  {active.map(([key, value]) => (
+                    <span className="filter-chip" key={key}>
+                      <span>
+                        {filterLabels[key] ?? key}:{' '}
+                        {key === 'groupIds'
+                          ? (value as string[])
+                              .map(
+                                (id) =>
+                                  groups.data?.find((g) => g.id === id)?.name ?? 'Agrupamento',
+                              )
+                              .join(', ')
+                          : key === 'episodeStatus'
+                            ? (
+                                {
+                                  identified: 'Identificado',
+                                  ambiguous: 'Ambíguo',
+                                  none: 'Sem números',
+                                } as Record<string, string>
+                              )[String(value)]
+                            : Array.isArray(value)
+                              ? value.join(', ')
+                              : String(value)}
+                      </span>
+                      <CloseButton
+                        size="xs"
+                        aria-label={'Remover filtro ' + (filterLabels[key] ?? key)}
+                        onClick={() =>
+                          change({ [key]: researchDefaults[key as keyof ResearchQuery] })
+                        }
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
               <Collapse in={advanced}>
                 <div className="advanced-fields">
                   <fieldset>
@@ -449,7 +498,7 @@ export default function ResearchPage() {
               </Collapse>
             </form>
             <details className="search-help">
-              <summary>Como os critérios são interpretados?</summary>
+              <summary>Ajuda sobre a pesquisa</summary>
               <p>
                 Nos modos “todas” e “qualquer”, use aspas para expressões e um sinal − antes do
                 termo para excluí-lo: <code>sustentabilidade -evento -"feira anual"</code>. No modo
@@ -459,12 +508,14 @@ export default function ResearchPage() {
                 Cada agrupamento selecionado deve corresponder. Caixa e acentos são ignorados e
                 espaços consecutivos são equivalentes. Palavras não ampliam automaticamente para
                 radicais ou sinônimos. Português auxilia a relevância; títulos têm peso maior. O
-                critério “série” é somente um trecho do título.
+                critério “série” é somente um trecho do título. Os resultados comprovam a presença
+                dos termos nos metadados armazenados, sem analisar o áudio ou confirmar o conteúdo
+                do vídeo.
               </p>
             </details>
           </section>
           {(!valid.success || results.isError || error) && (
-            <Alert color="red" my="lg">
+            <Alert color="red" my="md" title="Não foi possível concluir a pesquisa.">
               {error ||
                 (!valid.success
                   ? valid.error.issues.map((i) => i.message).join(' ')
@@ -481,309 +532,305 @@ export default function ResearchPage() {
               </Button>
             </Alert>
           )}
-          <section className="panel research-results" aria-busy={results.isFetching}>
-            <div className="research-results-header">
-              <div>
-                <span className="section-kicker">CORRESPONDÊNCIAS TEXTUAIS</span>
-                <h2>
-                  {number(result?.total)} resultados{' '}
-                  <small>{results.isFetching ? 'Atualizando…' : 'no acervo completo'}</small>
-                </h2>
+          {valid.success && !results.isError && (
+            <section className="panel research-results" aria-busy={results.isFetching}>
+              <div className="research-results-header">
+                <div>
+                  <h2>
+                    {result ? number(result.total) + ' resultados' : 'Resultados'}{' '}
+                    <small role="status" aria-live="polite">
+                      {results.isFetching ? 'Pesquisando...' : ''}
+                    </small>
+                  </h2>
+                </div>
+                <Group gap="xs">
+                  <Select
+                    aria-label="Ordenar resultados"
+                    data={orders}
+                    value={draft.order}
+                    onChange={(v) => change({ order: v as ResearchQuery['order'] })}
+                    w={190}
+                  />
+                  <SegmentedControl
+                    aria-label="Visualização"
+                    value={view}
+                    onChange={setView}
+                    data={[
+                      {
+                        value: 'table',
+                        label: (
+                          <span className="view-option">
+                            <List size={15} />
+                            Tabela
+                          </span>
+                        ),
+                      },
+                      {
+                        value: 'cards',
+                        label: (
+                          <span className="view-option">
+                            <LayoutGrid size={15} />
+                            Cards
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
+                  <Menu position="bottom-end">
+                    <Menu.Target>
+                      <Button
+                        variant="default"
+                        loading={exporting}
+                        aria-busy={exporting}
+                        leftSection={<ArrowDownToLine size={15} />}
+                        rightSection={<ChevronDown size={13} />}
+                      >
+                        Exportar
+                      </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Label>Todos os resultados dos filtros aplicados</Menu.Label>
+                      {(['csv', 'xlsx'] as const).flatMap((format) =>
+                        [false, true].map((detail) => (
+                          <Menu.Item
+                            key={`${format}-${detail}`}
+                            disabled={!valid.success || exporting}
+                            onClick={() => download(format, detail)}
+                          >
+                            {format.toUpperCase()} ·{' '}
+                            {detail ? 'Detalhado, com descrição' : 'Resumido'}
+                          </Menu.Item>
+                        )),
+                      )}
+                    </Menu.Dropdown>
+                  </Menu>
+                </Group>
               </div>
-              <Group gap="xs">
-                <Select
-                  aria-label="Ordenar resultados"
-                  data={orders}
-                  value={draft.order}
-                  onChange={(v) => change({ order: v as ResearchQuery['order'] })}
-                  w={190}
-                />
-                <SegmentedControl
-                  aria-label="Visualização"
-                  value={view}
-                  onChange={setView}
-                  data={[
-                    {
-                      value: 'table',
-                      label: (
-                        <span className="view-option">
-                          <List size={15} />
-                          Tabela
-                        </span>
-                      ),
-                    },
-                    {
-                      value: 'cards',
-                      label: (
-                        <span className="view-option">
-                          <LayoutGrid size={15} />
-                          Cards
-                        </span>
-                      ),
-                    },
-                  ]}
-                />
-                <Menu position="bottom-end">
-                  <Menu.Target>
-                    <Button
-                      variant="default"
-                      loading={exporting}
-                      leftSection={<ArrowDownToLine size={15} />}
-                      rightSection={<ChevronDown size={13} />}
+              {result && result.byYear.length > 0 && (
+                <div className="result-years" aria-label="Resultados por ano">
+                  {result.byYear.map((y) => (
+                    <button
+                      key={y.year ?? 'unknown'}
+                      onClick={() => {
+                        if (y.year) change({ year: y.year });
+                      }}
+                      disabled={!y.year}
                     >
-                      Exportar
-                    </Button>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Label>Todos os resultados dos filtros aplicados</Menu.Label>
-                    {(['csv', 'xlsx'] as const).flatMap((format) =>
-                      [false, true].map((detail) => (
-                        <Menu.Item
-                          key={`${format}-${detail}`}
-                          disabled={!valid.success}
-                          onClick={() => download(format, detail)}
-                        >
-                          {format.toUpperCase()} ·{' '}
-                          {detail ? 'Detalhado, com descrição' : 'Resumido'}
-                        </Menu.Item>
-                      )),
-                    )}
-                  </Menu.Dropdown>
-                </Menu>
-              </Group>
-            </div>
-            {result && result.byYear.length > 0 && (
-              <div className="result-years" aria-label="Resultados por ano">
-                {result.byYear.map((y) => (
-                  <button
-                    key={y.year ?? 'unknown'}
-                    onClick={() => {
-                      if (y.year) change({ year: y.year });
-                    }}
-                    disabled={!y.year}
-                  >
-                    <span>{y.year ?? 'Sem data'}</span>
-                    <b>{number(y.count)}</b>
-                  </button>
-                ))}
-              </div>
-            )}
-            {view === 'table' ? (
-              <DataTable<SearchRow>
-                idAccessor="youtube_video_id"
-                className="research-table"
-                height="clamp(340px, 56vh, 760px)"
-                pinFirstColumn
-                pinLastColumn
-                highlightOnHover
-                fetching={results.isFetching}
-                records={result?.rows ?? []}
-                sortStatus={parseSort(draft.order)}
-                onSortStatusChange={(s) => {
-                  const key = s.columnAccessor;
-                  const order =
-                    key === 'published_at'
-                      ? s.direction === 'asc'
-                        ? 'oldest'
-                        : 'newest'
-                      : key === 'title'
-                        ? `title_${s.direction}`
-                        : key === 'views'
-                          ? `views_${s.direction}`
-                          : key === 'likes'
-                            ? 'likes_desc'
-                            : key === 'comments'
-                              ? 'comments_desc'
-                              : 'relevance';
-                  change({ order: order as ResearchQuery['order'] });
-                }}
-                emptyState={
-                  <div className="empty-state">
-                    <Search size={30} />
-                    <h3>Nenhuma correspondência encontrada.</h3>
-                    <p>
-                      Ajuste os critérios ou verifique se as migrações de pesquisa foram aplicadas.
-                    </p>
-                  </div>
-                }
-                columns={[
-                  {
-                    accessor: 'thumbnail',
-                    title: 'Vídeo',
-                    width: 125,
-                    render: (v) => <ResearchThumb row={v} />,
-                  },
-                  {
-                    accessor: 'title',
-                    title: 'Título',
-                    width: 315,
-                    sortable: true,
-                    render: (v) => (
-                      <div className="video-title">
-                        <button onClick={() => setSelected(v.youtube_video_id)}>
-                          <Highlights text={v.title} spans={v.evidence?.titleSpans} />
-                        </button>
-                        <small>
-                          {v.youtube_video_id}
-                          {v.episode_number != null && ` · Episódio ${v.episode_number}`}
-                        </small>
-                      </div>
-                    ),
-                  },
-                  {
-                    accessor: 'evidence',
-                    title: 'Evidência nos metadados',
-                    width: 360,
-                    render: (v) => <Evidence row={v} />,
-                  },
-                  {
-                    accessor: 'published_at',
-                    title: 'Publicação',
-                    width: 125,
-                    sortable: true,
-                    render: (v) => date(v.published_at),
-                  },
-                  {
-                    accessor: 'views',
-                    title: 'Visualizações',
-                    width: 135,
-                    sortable: true,
-                    textAlign: 'right',
-                    render: (v) => number(v.views),
-                  },
-                  {
-                    accessor: 'likes',
-                    title: 'Curtidas',
-                    width: 100,
-                    sortable: true,
-                    textAlign: 'right',
-                    render: (v) => number(v.likes),
-                  },
-                  {
-                    accessor: 'comments',
-                    title: 'Comentários',
-                    width: 125,
-                    sortable: true,
-                    textAlign: 'right',
-                    render: (v) => number(v.comments),
-                  },
-                  {
-                    accessor: 'actions',
-                    title: 'Ações',
-                    width: 150,
-                    render: (v) => (
-                      <Group gap={6} wrap="nowrap">
-                        <Button
-                          variant="light"
-                          color="gray"
-                          size="compact-xs"
-                          onClick={() => setSelected(v.youtube_video_id)}
-                        >
-                          Descrição
-                        </Button>
-                        <Button
-                          component="a"
-                          variant="subtle"
-                          color="gray"
-                          size="compact-xs"
-                          href={v.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`Abrir ${v.title}`}
-                        >
-                          <ExternalLink size={15} />
-                        </Button>
-                      </Group>
-                    ),
-                  },
-                ]}
-              />
-            ) : (
-              <div className="research-card-grid">
-                {results.isPending ? (
-                  <Skeleton height={250} />
-                ) : result?.rows.length ? (
-                  result.rows.map((v) => (
-                    <article className="research-result-card" key={v.youtube_video_id}>
-                      <ResearchThumb row={v} />
-                      <div className="card-body">
-                        <span className="small muted">{date(v.published_at)}</span>
-                        <h3>
-                          <Highlights text={v.title} spans={v.evidence?.titleSpans} />
-                        </h3>
-                        <div className="card-stats">
-                          <span>
-                            <Eye size={14} />
-                            {number(v.views)}
-                          </span>
-                          <span>
-                            <Heart size={14} />
-                            {number(v.likes)}
-                          </span>
-                          <span>
-                            <MessageCircle size={14} />
-                            {number(v.comments)}
-                          </span>
+                      <span>{y.year ?? 'Sem data'}</span>
+                      <b>{number(y.count)}</b>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {view === 'table' ? (
+                <DataTable<SearchRow>
+                  idAccessor="youtube_video_id"
+                  className="research-table"
+                  height="clamp(340px, 56vh, 760px)"
+                  pinFirstColumn={!smallScreen}
+                  pinLastColumn={!smallScreen}
+                  highlightOnHover
+                  fetching={results.isFetching}
+                  records={result?.rows ?? []}
+                  sortStatus={parseSort(draft.order)}
+                  onSortStatusChange={(s) => {
+                    const key = s.columnAccessor;
+                    const order =
+                      key === 'published_at'
+                        ? s.direction === 'asc'
+                          ? 'oldest'
+                          : 'newest'
+                        : key === 'title'
+                          ? `title_${s.direction}`
+                          : key === 'views'
+                            ? `views_${s.direction}`
+                            : key === 'likes'
+                              ? 'likes_desc'
+                              : key === 'comments'
+                                ? 'comments_desc'
+                                : 'relevance';
+                    change({ order: order as ResearchQuery['order'] });
+                  }}
+                  emptyState={
+                    <div className="empty-state">
+                      <Search size={30} />
+                      <h3>Nenhum vídeo encontrado.</h3>
+                      <p>Ajuste os termos ou remova filtros para ampliar a pesquisa.</p>
+                    </div>
+                  }
+                  columns={[
+                    {
+                      accessor: 'thumbnail',
+                      title: 'Vídeo',
+                      width: 110,
+                      render: (v) => <ResearchThumb row={v} />,
+                    },
+                    {
+                      accessor: 'title',
+                      title: 'Título',
+                      width: 270,
+                      sortable: true,
+                      render: (v) => (
+                        <div className="video-title">
+                          <button onClick={() => setSelected(v.youtube_video_id)}>
+                            <Highlights text={v.title} spans={v.evidence?.titleSpans} />
+                          </button>
+                          <small>
+                            {v.youtube_video_id}
+                            {v.episode_number != null && ` · Episódio ${v.episode_number}`}
+                          </small>
                         </div>
-                        <Evidence row={v} />
-                        <Group mt="md">
+                      ),
+                    },
+                    {
+                      accessor: 'evidence',
+                      title: 'Evidência nos metadados',
+                      width: 300,
+                      render: (v) => <Evidence row={v} />,
+                    },
+                    {
+                      accessor: 'published_at',
+                      title: 'Publicação',
+                      width: 125,
+                      sortable: true,
+                      render: (v) => date(v.published_at),
+                    },
+                    {
+                      accessor: 'views',
+                      title: 'Visualizações',
+                      width: 135,
+                      sortable: true,
+                      textAlign: 'right',
+                      render: (v) => number(v.views),
+                    },
+                    {
+                      accessor: 'likes',
+                      title: 'Curtidas',
+                      width: 100,
+                      sortable: true,
+                      textAlign: 'right',
+                      render: (v) => number(v.likes),
+                    },
+                    {
+                      accessor: 'comments',
+                      title: 'Comentários',
+                      width: 125,
+                      sortable: true,
+                      textAlign: 'right',
+                      render: (v) => number(v.comments),
+                    },
+                    {
+                      accessor: 'actions',
+                      title: 'Ações',
+                      width: 135,
+                      render: (v) => (
+                        <Group gap={6} wrap="nowrap">
                           <Button
-                            size="xs"
-                            variant="default"
+                            variant="light"
+                            color="gray"
+                            size="compact-xs"
                             onClick={() => setSelected(v.youtube_video_id)}
                           >
                             Descrição
                           </Button>
                           <Button
-                            size="xs"
                             component="a"
+                            variant="subtle"
+                            color="gray"
+                            size="compact-xs"
                             href={v.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            rightSection={<ExternalLink size={13} />}
+                            aria-label={`Abrir ${v.title}`}
                           >
-                            Abrir vídeo
+                            <ExternalLink size={15} />
                           </Button>
                         </Group>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <div className="empty-state">
-                    <Search />
-                    <h3>Nenhuma correspondência encontrada.</h3>
-                  </div>
-                )}
+                      ),
+                    },
+                  ]}
+                />
+              ) : (
+                <div className="research-card-grid">
+                  {results.isPending ? (
+                    <Skeleton height={250} />
+                  ) : result?.rows.length ? (
+                    result.rows.map((v) => (
+                      <article className="research-result-card" key={v.youtube_video_id}>
+                        <ResearchThumb row={v} />
+                        <div className="card-body">
+                          <span className="small muted">{date(v.published_at)}</span>
+                          <h3>
+                            <Highlights text={v.title} spans={v.evidence?.titleSpans} />
+                          </h3>
+                          <div className="card-stats">
+                            <span>
+                              <Eye size={14} />
+                              {number(v.views)}
+                            </span>
+                            <span>
+                              <Heart size={14} />
+                              {number(v.likes)}
+                            </span>
+                            <span>
+                              <MessageCircle size={14} />
+                              {number(v.comments)}
+                            </span>
+                          </div>
+                          <Evidence row={v} />
+                          <Group mt="md">
+                            <Button
+                              size="xs"
+                              variant="default"
+                              onClick={() => setSelected(v.youtube_video_id)}
+                            >
+                              Descrição
+                            </Button>
+                            <Button
+                              size="xs"
+                              component="a"
+                              href={v.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              rightSection={<ExternalLink size={13} />}
+                            >
+                              Abrir vídeo
+                            </Button>
+                          </Group>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <Search />
+                      <h3>Nenhuma correspondência encontrada.</h3>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="table-pagination">
+                <span>
+                  Exibindo {number(result?.rows.length ?? 0)} de {number(result?.total ?? 0)}{' '}
+                  resultados · página {applied.page}
+                </span>
+                <Group>
+                  <Select
+                    aria-label="Resultados por página"
+                    data={['25', '50', '100']}
+                    value={String(draft.pageSize)}
+                    w={78}
+                    onChange={(v) => change({ pageSize: Number(v) as ResearchQuery['pageSize'] })}
+                  />
+                  <Pagination
+                    total={Math.max(1, Math.ceil((result?.total ?? 0) / applied.pageSize))}
+                    value={draft.page}
+                    size="sm"
+                    onChange={(page) => change({ page }, false)}
+                  />
+                </Group>
               </div>
-            )}
-            <div className="table-pagination">
-              <span>
-                {number(result?.total)} correspondências · página {applied.page}
-                <small>
-                  Filtros e ordenação preservados na paginação e na troca de visualização.
-                </small>
-              </span>
-              <Group>
-                <Select
-                  aria-label="Resultados por página"
-                  data={['25', '50', '100']}
-                  value={String(draft.pageSize)}
-                  w={78}
-                  onChange={(v) => change({ pageSize: Number(v) as ResearchQuery['pageSize'] })}
-                />
-                <Pagination
-                  total={Math.max(1, Math.ceil((result?.total ?? 0) / applied.pageSize))}
-                  value={draft.page}
-                  size="sm"
-                  onChange={(page) => change({ page }, false)}
-                />
-              </Group>
-            </div>
-          </section>
-          <p className="research-disclaimer">
-            Os resultados comprovam somente a presença dos termos nos metadados armazenados. Não
-            representam análise do áudio ou confirmação do conteúdo do vídeo.
-          </p>
+            </section>
+          )}
         </Tabs.Panel>
       </Tabs>
       <VideoDrawer id={selected} onClose={() => setSelected(null)} terms={result?.terms ?? []} />

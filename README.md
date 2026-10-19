@@ -1,5 +1,7 @@
 # Fala Carlão · Gerenciador de vídeos
 
+**Interface administrativa:** dashboard compacto, pesquisa com filtros removíveis, monitor de sincronização e login simplificado. Veja a [auditoria e validação de UX/UI](docs/ux-audit.md). Esta refatoração de frontend não exige novas migrations.
+
 **Evolução do acervo:** Pesquisa Avançada, Linha do Tempo, vocabulários editáveis e pesquisas privadas salvas. Para ativar no banco existente, aplique **somente as migrações novas 002 e 003**, nessa ordem. Não reexecute a 001. Veja [auditoria](docs/research-audit.md) e [guia da pesquisa, semântica, ativação e limites](docs/research.md).
 
 Painel privado para catalogar todos os vídeos públicos acessíveis de `@falacarlao`. React + TypeScript + Vite, Mantine UI/DataTable, TanStack Query, Supabase, Node.js e YouTube Data API v3. Não altera vídeos no YouTube e não contém catálogo fictício.
