@@ -1,0 +1,32 @@
+name: Sincronizar acervo Fala Carlão
+on:
+  schedule:
+    # America/Sao_Paulo = UTC-3: 11/17/23 UTC = 08/14/20 Brasília.
+    # GitHub schedules may be delayed. Workflow must be on the default branch.
+    - cron: '0 11,17,23 * * *'
+  workflow_dispatch:
+concurrency:
+  group: fala-carlao-sync
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          YOUTUBE_HANDLE: '@falacarlao'
+          YOUTUBE_DAILY_BUDGET: '9000'
+          YOUTUBE_RUN_BUDGET: '2800'
+          STATISTICS_HISTORY: 'true'
