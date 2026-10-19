@@ -29,19 +29,52 @@ import {
   Sun,
   X,
   Youtube,
+  Search,
+  History,
 } from 'lucide-react';
 import { api, supabase } from './lib';
 import { readApiJson } from '../shared/http';
 const Dashboard = lazy(() => import('./pages').then((m) => ({ default: m.Dashboard })));
 const SyncPage = lazy(() => import('./pages').then((m) => ({ default: m.SyncPage })));
 const VideoPage = lazy(() => import('./pages').then((m) => ({ default: m.VideoPage })));
+const ResearchPage = lazy(() => import('./research/ResearchPage'));
+const TimelinePage = lazy(() => import('./research/TimelinePage'));
+const ResearchOverview = lazy(() =>
+  import('./research/Overview').then((m) => ({ default: m.ResearchOverview })),
+);
 import type { Channel } from '../shared/types';
-type Page = 'dashboard' | 'videos' | 'sync' | 'settings';
+type Page = 'dashboard' | 'videos' | 'research' | 'timeline' | 'sync' | 'settings';
 const nav = [
   { id: 'dashboard', label: 'Visão geral', icon: LayoutDashboard },
   { id: 'videos', label: 'Acervo de vídeos', icon: Film },
+  { id: 'research', label: 'Pesquisa Avançada', icon: Search },
+  { id: 'timeline', label: 'Linha do Tempo', icon: History },
   { id: 'sync', label: 'Sincronizações', icon: RefreshCw },
 ] as const;
+const pageLabels: Record<Page, string> = {
+  dashboard: 'Visão geral',
+  videos: 'Acervo de vídeos',
+  research: 'Pesquisa Avançada',
+  timeline: 'Linha do Tempo',
+  sync: 'Sincronizações',
+  settings: 'Configurações',
+};
+const pageTitles: Record<Page, string> = {
+  dashboard: 'Uma visão do seu acervo.',
+  videos: 'Todas as suas histórias.',
+  research: 'Encontre a história nos detalhes.',
+  timeline: 'As palavras ao longo do tempo.',
+  sync: 'Seu acervo, sempre em dia.',
+  settings: 'Tudo pronto para conectar.',
+};
+const pageDescriptions: Record<Page, string> = {
+  dashboard: 'Os números e as histórias que constroem o Fala Carlão.',
+  videos: 'Explore, pesquise e reencontre cada conversa do canal.',
+  research: 'Títulos, descrições e evidências para uma pesquisa verificável.',
+  timeline: 'Investigue padrões de títulos, nomenclaturas e numerações.',
+  sync: 'Acompanhe as importações e a atualização dos dados do canal.',
+  settings: 'Gerencie as conexões que dão vida ao seu painel.',
+};
 export function SetupGuide() {
   return (
     <div className="setup-guide">
@@ -305,7 +338,7 @@ export default function App() {
           {nav.map((item) => (
             <button
               key={item.id}
-              className={page === item.id ? 'active' : ''}
+              className={`${page === item.id ? 'active' : ''} ${item.id === 'research' ? 'research-nav' : ''}`}
               onClick={() => {
                 setPage(item.id);
                 setMobile(false);
@@ -389,33 +422,10 @@ export default function App() {
           <div className="page-top">
             <div>
               <div className="breadcrumb">
-                Fala Carlão <span>/</span>{' '}
-                {page === 'dashboard'
-                  ? 'Visão geral'
-                  : page === 'videos'
-                    ? 'Acervo de vídeos'
-                    : page === 'sync'
-                      ? 'Sincronizações'
-                      : 'Configurações'}
+                Fala Carlão <span>/</span> {pageLabels[page]}
               </div>
-              <h1>
-                {page === 'dashboard'
-                  ? 'Uma visão do seu acervo.'
-                  : page === 'videos'
-                    ? 'Todas as suas histórias.'
-                    : page === 'sync'
-                      ? 'Seu acervo, sempre em dia.'
-                      : 'Tudo pronto para conectar.'}
-              </h1>
-              <p className="muted">
-                {page === 'dashboard'
-                  ? 'Os números e as histórias que constroem o Fala Carlão.'
-                  : page === 'videos'
-                    ? 'Explore, pesquise e reencontre cada conversa do canal.'
-                    : page === 'sync'
-                      ? 'Acompanhe as importações e a atualização dos dados do canal.'
-                      : 'Gerencie as conexões que dão vida ao seu painel.'}
-              </p>
+              <h1>{pageTitles[page]}</h1>
+              <p className="muted">{pageDescriptions[page]}</p>
             </div>
             <Button
               leftSection={<RefreshCw size={16} />}
@@ -463,6 +473,9 @@ export default function App() {
               />
             )}
             {page === 'videos' && <VideoPage />}
+            {page === 'dashboard' && <ResearchOverview onResearch={() => setPage('research')} />}
+            {page === 'research' && <ResearchPage />}
+            {page === 'timeline' && <TimelinePage />}
             {page === 'sync' && (
               <SyncPage
                 channel={channel.data ?? null}

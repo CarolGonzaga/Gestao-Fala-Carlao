@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { userDb, checked } from './db.js';
 import { filterSchema } from '../shared/filters.js';
 import { exportVideos } from './export.js';
+import { createResearchRouter } from './research.js';
 export function createApp(makeDb = userDb) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '10kb' }));
+  app.use(express.json({ limit: '32kb' }));
   app.use('/api', (_req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -109,14 +110,27 @@ export function createApp(makeDb = userDb) {
       next(e);
     }
   });
+  app.use('/api/research', createResearchRouter());
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint não encontrado.' }));
   app.use(
     (error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      res.status(error instanceof z.ZodError ? 400 : 500).json({
+      if ((error as { status?: number })?.status === 413) {
+        res
+          .status(413)
+          .json({ error: 'A consulta excede o limite de 32 KB. Reduza os critérios.' });
+        return;
+      }
+      const databaseError = error as { code?: string; message?: string };
+      const migrationPending = ['PGRST202', 'PGRST205', '42P01', '42883'].includes(
+        databaseError?.code ?? '',
+      );
+      res.status(error instanceof z.ZodError ? 400 : migrationPending ? 503 : 500).json({
         error:
           error instanceof z.ZodError
-            ? 'Parâmetros inválidos.'
-            : 'Não foi possível concluir a solicitação.',
+            ? error.issues.map((i) => i.message).join(' ')
+            : migrationPending
+              ? 'Pesquisa ainda não ativada no banco. Aplique as migrações 002_research.sql e 003_research_timeline.sql no Supabase.'
+              : 'Não foi possível concluir a solicitação.',
       });
     },
   );

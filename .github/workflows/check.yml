@@ -14,3 +14,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Verificar índice de pesquisa no Supabase (somente leitura)
+        run: npx tsx server/research-preflight.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

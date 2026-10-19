@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -10,13 +10,16 @@ it('boots the compiled Vercel entry in native Node ESM and handles an API reques
   const directory = await mkdtemp(join(workspace, '.runtime-test-'));
   try {
     // Match deployment: Node executes emitted JS, without Vite, tsx or Vitest's resolver.
-    for (const file of [
-      'api/index.ts',
-      'server/app.ts',
-      'server/db.ts',
-      'server/export.ts',
-      'shared/filters.ts',
-    ]) {
+    const files = (
+      await Promise.all(
+        ['api', 'server', 'shared'].map(async (folder) =>
+          (await readdir(join(workspace, folder)))
+            .filter((f) => f.endsWith('.ts'))
+            .map((f) => `${folder}/${f}`),
+        ),
+      )
+    ).flat();
+    for (const file of files) {
       const source = await readFile(join(workspace, file), 'utf8');
       const target = join(directory, file.replace(/\.ts$/, '.js'));
       await mkdir(dirname(target), { recursive: true });

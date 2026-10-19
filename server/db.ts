@@ -17,6 +17,6 @@ export function userDb(token: string) {
   });
 }
 export function checked<T>(result: { data: T; error: { message: string } | null }): T {
-  if (result.error) throw new Error(result.error.message);
+  if (result.error) throw Object.assign(new Error(result.error.message), result.error);
   return result.data;
 }
